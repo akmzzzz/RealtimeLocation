@@ -6,7 +6,7 @@
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
     <!-- Meta for mobile responsiveness -->
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
     <style>
         /* Default styles for the Unity container */
         body, html {
@@ -69,14 +69,9 @@
         </div>
     </div>
 
-    <!-- Div for displaying current location, accuracy, heading, and speed -->
+    <!-- Div for displaying current location -->
     <div id="location-display">
-        <strong>Current Location:</strong><br>
-        Latitude: <span id="latitude">0</span><br>
-        Longitude: <span id="longitude">0</span><br>
-        Accuracy: <span id="accuracy">0</span> meters<br>
-        Heading: <span id="heading">0</span> degrees<br>
-        Speed: <span id="speed">0</span> m/s
+        Current Location: Latitude: <span id="latitude">0</span>, Longitude: <span id="longitude">0</span>
     </div>
 
     <script>
@@ -121,7 +116,7 @@
             showBanner: unityShowBanner,
         };
 
-        // Function to resize canvas dynamically for full-screen on both desktop and mobile
+        // Function to dynamically resize canvas for full screen on both desktop and mobile
         function resizeCanvas() {
             var width = window.innerWidth;
             var height = window.innerHeight;
@@ -163,19 +158,13 @@
         function updateLocationDisplay(position) {
             var latitude = position.coords.latitude;
             var longitude = position.coords.longitude;
-            var accuracy = position.coords.accuracy;
-            var heading = position.coords.heading;
-            var speed = position.coords.speed;
 
             // Update the HTML elements with the obtained coordinates
             document.getElementById('latitude').innerText = latitude.toFixed(6);
             document.getElementById('longitude').innerText = longitude.toFixed(6);
-            document.getElementById('accuracy').innerText = accuracy ? accuracy.toFixed(2) : "N/A";
-            document.getElementById('heading').innerText = heading ? heading.toFixed(2) : "N/A";
-            document.getElementById('speed').innerText = speed ? speed.toFixed(2) : "N/A";
 
             // Send the location data to Unity
-            var locationString = latitude + "," + longitude + "," + accuracy + "," + heading + "," + speed;
+            var locationString = latitude + "," + longitude;
 
             // Check if unityInstance is defined and send data to Unity
             if (typeof unityInstance !== 'undefined' && unityInstance != null) {
