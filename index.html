@@ -5,11 +5,56 @@
     <title>Unity WebGL Player | PUPath System</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
+    <!-- Meta for mobile responsiveness -->
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        /* Default styles for the Unity container */
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            width: 100%;
+            height: 100%;
+        }
+
+        #unity-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #unity-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        #location-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 999;
+        }
+
+        /* Adjust size of location display on mobile */
+        @media screen and (max-width: 600px) {
+            #location-display {
+                font-size: 12px;
+                padding: 5px;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Unity WebGL container -->
-    <div id="unity-container" class="unity-desktop">
-        <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
+    <div id="unity-container">
+        <canvas id="unity-canvas" tabindex="-1"></canvas>
         <div id="unity-loading-bar">
             <div id="unity-logo"></div>
             <div id="unity-progress-bar-empty">
@@ -25,7 +70,7 @@
     </div>
 
     <!-- Div for displaying current location, accuracy, heading, and speed -->
-    <div id="location-display" style="position: absolute; top: 10px; left: 10px; background-color: rgba(255, 255, 255, 0.7); padding: 10px; border-radius: 8px;">
+    <div id="location-display">
         <strong>Current Location:</strong><br>
         Latitude: <span id="latitude">0</span><br>
         Longitude: <span id="longitude">0</span><br>
@@ -76,20 +121,16 @@
             showBanner: unityShowBanner,
         };
 
-        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-            var meta = document.createElement('meta');
-            meta.name = 'viewport';
-            meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-            document.getElementsByTagName('head')[0].appendChild(meta);
-            container.className = "unity-mobile";
-            canvas.className = "unity-mobile";
-        } else {
-            canvas.style.width = "960px";
-            canvas.style.height = "600px";
+        // Full-screen function
+        function resizeCanvas() {
+            canvas.style.width = window.innerWidth + "px";
+            canvas.style.height = window.innerHeight + "px";
         }
 
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
+
         loadingBar.style.display = "block";
-        // Declare unityInstance globally
         var unityInstance = null;
 
         var script = document.createElement("script");
@@ -110,10 +151,58 @@
             });
         };
         document.body.appendChild(script);
-    </script>
 
-    <!-- Include your GetLocation.js script -->
-    <script src="GetLocation.js"></script>
+        resizeCanvas(); // Ensure the canvas is full-screen from the start
+
+        // Geolocation Script
+        function updateLocationDisplay(position) {
+            var latitude = position.coords.latitude;
+            var longitude = position.coords.longitude;
+            var accuracy = position.coords.accuracy;
+            var heading = position.coords.heading;
+            var speed = position.coords.speed;
+
+            // Update the HTML elements with the obtained coordinates
+            document.getElementById('latitude').innerText = latitude.toFixed(6);
+            document.getElementById('longitude').innerText = longitude.toFixed(6);
+            document.getElementById('accuracy').innerText = accuracy ? accuracy.toFixed(2) : "N/A";
+            document.getElementById('heading').innerText = heading ? heading.toFixed(2) : "N/A";
+            document.getElementById('speed').innerText = speed ? speed.toFixed(2) : "N/A";
+
+            // Send the location data to Unity
+            var locationString = latitude + "," + longitude + "," + accuracy + "," + heading + "," + speed;
+
+            // Check if unityInstance is defined and send data to Unity
+            if (typeof unityInstance !== 'undefined' && unityInstance != null) {
+                try {
+                    unityInstance.SendMessage('WebGLGPSManager', 'UpdateLocationFromJS', locationString);
+                } catch (e) {
+                    console.error("Error sending location data to Unity:", e);
+                }
+            } else {
+                console.error("unityInstance is not defined. Unable to send data to Unity.");
+            }
+        }
+
+        function handleError(error) {
+            console.error("Error obtaining geolocation: ", error);
+            document.getElementById('location-display').innerText = "Error obtaining geolocation: " + error.message;
+        }
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(updateLocationDisplay, handleError, { enableHighAccuracy: true });
+            } else {
+                console.error("Geolocation is not supported by this browser.");
+                document.getElementById('location-display').innerText = "Geolocation is not supported by this browser.";
+            }
+        }
+
+        // Initialize geolocation after Unity instance is ready
+        function onUnityInstanceInitialized(instance) {
+            unityInstance = instance;
+            getLocation();
+        }
     </script>
 </body>
 </html>
