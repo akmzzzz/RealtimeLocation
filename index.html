@@ -5,32 +5,27 @@
     <title>Unity WebGL Player | PUPath System</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
-    <!-- Meta for mobile responsiveness -->
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+    <!-- Add style for full-screen canvas -->
     <style>
-        /* Default styles for the Unity container */
-        body, html {
+        html, body {
             margin: 0;
             padding: 0;
+            height: 100%;
             overflow: hidden;
-            background-color: #000;
-            width: 100%;
-            height: 100%;
         }
-
         #unity-container {
-            position: absolute;
-            left: 0;
-            top: 0;
             width: 100%;
             height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            overflow: hidden;
         }
-
         #unity-canvas {
             width: 100%;
             height: 100%;
+            background-color: black;
         }
-
         #location-display {
             position: absolute;
             top: 10px;
@@ -38,16 +33,7 @@
             background-color: rgba(255, 255, 255, 0.7);
             padding: 10px;
             border-radius: 8px;
-            font-size: 14px;
-            z-index: 999;
-        }
-
-        /* Adjust size of location display on mobile */
-        @media screen and (max-width: 600px) {
-            #location-display {
-                font-size: 12px;
-                padding: 5px;
-            }
+            z-index: 100; /* Ensure it appears above the canvas */
         }
     </style>
 </head>
@@ -69,9 +55,14 @@
         </div>
     </div>
 
-    <!-- Div for displaying current location -->
+    <!-- Div for displaying current location, accuracy, heading, and speed -->
     <div id="location-display">
-        Current Location: Latitude: <span id="latitude">0</span>, Longitude: <span id="longitude">0</span>
+        <strong>Current Location:</strong><br>
+        Latitude: <span id="latitude">0</span><br>
+        Longitude: <span id="longitude">0</span><br>
+        Accuracy: <span id="accuracy">0</span> meters<br>
+        Heading: <span id="heading">0</span> degrees<br>
+        Speed: <span id="speed">0</span> m/s
     </div>
 
     <script>
@@ -116,20 +107,20 @@
             showBanner: unityShowBanner,
         };
 
-        // Function to dynamically resize canvas for full screen on both desktop and mobile
-        function resizeCanvas() {
-            var width = window.innerWidth;
-            var height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
-            canvas.style.width = width + "px";
-            canvas.style.height = height + "px";
+        // Add meta viewport for mobile devices
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            var meta = document.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+            document.getElementsByTagName('head')[0].appendChild(meta);
         }
 
-        window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('orientationchange', resizeCanvas);
+        // Set the canvas to fill its container
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
 
         loadingBar.style.display = "block";
+        // Declare unityInstance globally
         var unityInstance = null;
 
         var script = document.createElement("script");
@@ -150,53 +141,9 @@
             });
         };
         document.body.appendChild(script);
-
-        // Ensure the canvas is full-screen from the start
-        resizeCanvas();
-
-        // Geolocation Script
-        function updateLocationDisplay(position) {
-            var latitude = position.coords.latitude;
-            var longitude = position.coords.longitude;
-
-            // Update the HTML elements with the obtained coordinates
-            document.getElementById('latitude').innerText = latitude.toFixed(6);
-            document.getElementById('longitude').innerText = longitude.toFixed(6);
-
-            // Send the location data to Unity
-            var locationString = latitude + "," + longitude;
-
-            // Check if unityInstance is defined and send data to Unity
-            if (typeof unityInstance !== 'undefined' && unityInstance != null) {
-                try {
-                    unityInstance.SendMessage('WebGLGPSManager', 'UpdateLocationFromJS', locationString);
-                } catch (e) {
-                    console.error("Error sending location data to Unity:", e);
-                }
-            } else {
-                console.error("unityInstance is not defined. Unable to send data to Unity.");
-            }
-        }
-
-        function handleError(error) {
-            console.error("Error obtaining geolocation: ", error);
-            document.getElementById('location-display').innerText = "Error obtaining geolocation: " + error.message;
-        }
-
-        function getLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(updateLocationDisplay, handleError, { enableHighAccuracy: true });
-            } else {
-                console.error("Geolocation is not supported by this browser.");
-                document.getElementById('location-display').innerText = "Geolocation is not supported by this browser.";
-            }
-        }
-
-        // Initialize geolocation after Unity instance is ready
-        function onUnityInstanceInitialized(instance) {
-            unityInstance = instance;
-            getLocation();
-        }
     </script>
+
+    <!-- Include your GetLocation.js script -->
+    <script src="GetLocation.js"></script>
 </body>
 </html>
