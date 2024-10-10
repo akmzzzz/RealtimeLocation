@@ -121,10 +121,14 @@
             showBanner: unityShowBanner,
         };
 
-        // Full-screen function
+        // Function to resize canvas dynamically for full-screen on both desktop and mobile
         function resizeCanvas() {
-            canvas.style.width = window.innerWidth + "px";
-            canvas.style.height = window.innerHeight + "px";
+            var width = window.innerWidth;
+            var height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.width = width + "px";
+            canvas.style.height = height + "px";
         }
 
         window.addEventListener('resize', resizeCanvas);
@@ -152,7 +156,8 @@
         };
         document.body.appendChild(script);
 
-        resizeCanvas(); // Ensure the canvas is full-screen from the start
+        // Ensure the canvas is full-screen from the start
+        resizeCanvas();
 
         // Geolocation Script
         function updateLocationDisplay(position) {
