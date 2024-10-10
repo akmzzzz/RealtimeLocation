@@ -4,16 +4,22 @@ var unityInstance;
 function updateLocationDisplay(position) {
   var latitude = position.coords.latitude;
   var longitude = position.coords.longitude;
+  var accuracy = position.coords.accuracy || 0;   // Default to 0 if not available
+  var heading = position.coords.heading || 0;     // Default to 0 if not available
+  var speed = position.coords.speed || 0;         // Default to 0 if not available
 
-  // Update the HTML elements with the obtained coordinates
+  // Update the HTML elements with the obtained coordinates and additional info
   document.getElementById('latitude').innerText = latitude.toFixed(6);
   document.getElementById('longitude').innerText = longitude.toFixed(6);
+  document.getElementById('accuracy').innerText = accuracy.toFixed(2);
+  document.getElementById('heading').innerText = heading.toFixed(2);
+  document.getElementById('speed').innerText = speed.toFixed(2);
 
   // Log the coordinates to the console for debugging
-  console.log("Latitude: " + latitude + ", Longitude: " + longitude);
+  console.log("Latitude: " + latitude + ", Longitude: " + longitude + ", Accuracy: " + accuracy + ", Heading: " + heading + ", Speed: " + speed);
 
   // Send the location data to Unity
-  var locationString = latitude + "," + longitude;
+  var locationString = latitude + "," + longitude + "," + accuracy + "," + heading + "," + speed;
 
   // Check if unityInstance is defined
   if (typeof unityInstance !== 'undefined' && unityInstance != null) {
