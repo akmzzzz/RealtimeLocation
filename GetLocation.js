@@ -1,40 +1,21 @@
-// Ensure `math` is accessible
-var math = math || window.math;
-
 // Declare unityInstance in the global scope if not already defined
 var unityInstance;
-
-// Kalman Filter variables
-var kalmanFilter = {
-  x: null, // State vector
-  P: null, // Covariance matrix
-  F: null, // State transition model
-  Q: null, // Process noise covariance
-  H: null, // Observation model
-  R: null, // Measurement noise covariance
-  initialized: false
-};
 
 // Previous position and time to check for fluctuations
 var previousPosition = null;
 var previousTimestamp = null;
 
-// Heading history for smoothing
-var headingHistory = [];
-
 // Threshold values
-var MAX_SPEED_MPS = 50;    // Maximum speed in meters per second (e.g., 180 km/h)
-var MAX_ACCURACY = 10;     // Maximum acceptable accuracy in meters
-var MIN_DISTANCE = 0.5;    // Minimum distance in meters to consider an update
-var MIN_TIME_DIFF_MS = 500; // Minimum time difference in milliseconds
+var MAX_SPEED_MPS = 50; // Maximum speed in meters per second (e.g., 180 km/h)
+var MAX_ACCURACY = 100; // Maximum acceptable accuracy in meters
 
 // Function to calculate distance between two coordinates using the Haversine formula
 function haversineDistance(lat1, lon1, lat2, lon2) {
   var R = 6371e3; // Earth radius in meters
   var φ1 = (lat1 * Math.PI) / 180;
   var φ2 = (lat2 * Math.PI) / 180;
-  var Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  var Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  var Δφ = ((lat2 - lat1) * Math.PI / 180);
+  var Δλ = ((lon2 - lon1) * Math.PI / 180);
   var a =
     Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
     Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
@@ -43,90 +24,26 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return distance; // in meters
 }
 
-// Initialize the Kalman Filter parameters
-function initializeKalmanFilter(position) {
-  kalmanFilter.x = math.matrix([[position.coords.latitude], [position.coords.longitude]]);
-  kalmanFilter.P = math.identity(2);
-  kalmanFilter.F = math.identity(2);
-  kalmanFilter.Q = math.multiply(math.identity(2), 0.0001);
-  kalmanFilter.H = math.identity(2);
-  kalmanFilter.R = math.multiply(math.identity(2), position.coords.accuracy || 5);
-  kalmanFilter.initialized = true;
-}
-
-function applyKalmanFilter(position) {
-  if (!kalmanFilter.initialized) {
-    initializeKalmanFilter(position);
-    return position;
-  }
-
-  // Prediction step
-  kalmanFilter.x = math.multiply(kalmanFilter.F, kalmanFilter.x);
-  kalmanFilter.P = math.add(
-    math.multiply(math.multiply(kalmanFilter.F, kalmanFilter.P), math.transpose(kalmanFilter.F)),
-    kalmanFilter.Q
-  );
-
-  // Update step
-  var z = math.matrix([[position.coords.latitude], [position.coords.longitude]]);
-  var y = math.subtract(z, math.multiply(kalmanFilter.H, kalmanFilter.x));
-  var S = math.add(
-    math.multiply(math.multiply(kalmanFilter.H, kalmanFilter.P), math.transpose(kalmanFilter.H)),
-    kalmanFilter.R
-  );
-  var K = math.multiply(
-    math.multiply(kalmanFilter.P, math.transpose(kalmanFilter.H)),
-    math.inv(S)
-  );
-  kalmanFilter.x = math.add(kalmanFilter.x, math.multiply(K, y));
-  kalmanFilter.P = math.multiply(
-    math.subtract(math.identity(2), math.multiply(K, kalmanFilter.H)),
-    kalmanFilter.P
-  );
-
-  // Return the filtered position
-  var filteredPosition = {
-    coords: {
-      latitude: kalmanFilter.x.get([0, 0]),
-      longitude: kalmanFilter.x.get([1, 0]),
-      accuracy: Math.sqrt(kalmanFilter.P.get([0, 0]) + kalmanFilter.P.get([1, 1])),
-      heading: position.coords.heading,
-      speed: position.coords.speed
-    }
-  };
-  return filteredPosition;
-}
-
-// Update your updateLocationDisplay function
 function updateLocationDisplay(position) {
-  // Apply Kalman Filter
-  var filteredPosition = applyKalmanFilter(position);
-
-  // Use filteredPosition instead of position
-  var latitude = filteredPosition.coords.latitude;
-  var longitude = filteredPosition.coords.longitude;
-  var accuracy = filteredPosition.coords.accuracy || 0; // Default to 0 if not available
-  var heading = filteredPosition.coords.heading;
-  var speed = filteredPosition.coords.speed || 0; // Default to 0 if not available
+  var latitude = position.coords.latitude;
+  var longitude = position.coords.longitude;
+  var accuracy = position.coords.accuracy || 0; // Default to 0 if not available
+  var heading = position.coords.heading || 0; // Default to 0 if not available
+  var speed = position.coords.speed || 0; // Default to 0 if not available
 
   var currentTimestamp = Date.now();
 
   // If this is the first update, accept the position regardless of accuracy
   if (!previousPosition) {
     console.log("First position update received.");
-    previousPosition = filteredPosition;
-    previousTimestamp = currentTimestamp;
   } else {
-    // Time difference in milliseconds
-    var timeDiff = currentTimestamp - previousTimestamp;
-
-    // Ignore updates that are less than 500ms apart
-    if (timeDiff < MIN_TIME_DIFF_MS) {
-      console.log("Ignoring position update due to time interval less than 500ms");
+    // Ignore updates with poor accuracy
+    if (accuracy > MAX_ACCURACY) {
+      console.warn("Ignoring position update due to low accuracy:", accuracy, "meters");
       return;
     }
 
-    // Compute distance
+    // Compute distance and time difference
     var distance = haversineDistance(
       previousPosition.coords.latitude,
       previousPosition.coords.longitude,
@@ -134,45 +51,32 @@ function updateLocationDisplay(position) {
       longitude
     );
 
-    // Ignore updates if distance moved is less than 0.5 meters
-    if (distance < MIN_DISTANCE) {
-      console.log("Ignoring position update due to distance moved less than 0.5 meters");
-      return;
-    }
+    var timeDiff = (currentTimestamp - previousTimestamp) / 1000; // in seconds
 
-    // Ignore updates with poor accuracy
-    if (accuracy > MAX_ACCURACY) {
-      console.warn("Ignoring position update due to low accuracy:", accuracy, "meters");
+    if (timeDiff > 0) {
+      // Compute speed in m/s
+      var computedSpeed = distance / timeDiff;
+
+      // If speed is too high, ignore this update
+      if (computedSpeed > MAX_SPEED_MPS) {
+        console.warn(
+          "Ignoring position update due to high computed speed:",
+          computedSpeed.toFixed(2),
+          "m/s"
+        );
+        return;
+      }
+    } else {
+      console.warn(
+        "Time difference is zero or negative, ignoring update to prevent division by zero"
+      );
       return;
     }
   }
 
   // Update the previous position and timestamp
-  previousPosition = filteredPosition;
+  previousPosition = position;
   previousTimestamp = currentTimestamp;
-
-  // Smooth heading
-  var smoothedHeading = 0;
-  if (typeof heading === 'number' && !isNaN(heading)) {
-    // Keep a history of heading values
-    headingHistory.push(heading);
-
-    // Keep only the last 5 heading values
-    if (headingHistory.length > 5) {
-      headingHistory.shift(); // Remove the oldest value
-    }
-
-    // Compute average heading
-    var sumHeading = headingHistory.reduce(function (a, b) {
-      return a + b;
-    }, 0);
-    smoothedHeading = sumHeading / headingHistory.length;
-  } else {
-    // Heading not available; use the last smoothed heading if available
-    if (headingHistory.length > 0) {
-      smoothedHeading = headingHistory[headingHistory.length - 1];
-    }
-  }
 
   // Update the HTML elements with the obtained coordinates and additional info
   if (document.getElementById("latitude")) {
@@ -185,7 +89,7 @@ function updateLocationDisplay(position) {
     document.getElementById("accuracy").innerText = accuracy.toFixed(2);
   }
   if (document.getElementById("heading")) {
-    document.getElementById("heading").innerText = smoothedHeading.toFixed(2);
+    document.getElementById("heading").innerText = heading.toFixed(2);
   }
   if (document.getElementById("speed")) {
     document.getElementById("speed").innerText = speed.toFixed(2);
@@ -200,7 +104,7 @@ function updateLocationDisplay(position) {
       ", Accuracy: " +
       accuracy +
       ", Heading: " +
-      smoothedHeading +
+      heading +
       ", Speed: " +
       speed
   );
@@ -213,7 +117,7 @@ function updateLocationDisplay(position) {
     "," +
     accuracy +
     "," +
-    smoothedHeading +
+    heading +
     "," +
     speed;
 
@@ -250,7 +154,7 @@ function getLocation() {
     navigator.geolocation.watchPosition(updateLocationDisplay, handleError, {
       enableHighAccuracy: true,
       maximumAge: 0,
-      timeout: 5000 // Lower timeout to 5 seconds
+      timeout: 27000,
     });
   } else {
     console.error("Geolocation is not supported by this browser.");
