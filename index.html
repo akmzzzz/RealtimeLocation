@@ -36,12 +36,26 @@
             border-radius: 8px;
             z-index: 100; /* Ensure it appears above the canvas */
         }
+        /* Add styles for the hidden input field */
+        #webgl-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            font-size: 16px;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999; /* Ensure it appears above the canvas when needed */
+        }
     </style>
 </head>
 <body>
     <!-- Unity WebGL container -->
     <div id="unity-container">
         <canvas id="unity-canvas" tabindex="-1"></canvas>
+        <!-- Add the HTML input field here -->
+        <input type="text" id="webgl-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         <div id="unity-loading-bar">
             <div id="unity-logo"></div>
             <div id="unity-progress-bar-empty">
@@ -136,7 +150,9 @@
                     unityInstance.SetFullscreen(1);
                 };
                 // Call the function to initialize geolocation after Unity is ready
-                onUnityInstanceInitialized(unityInstance);
+                if (typeof onUnityInstanceInitialized === 'function') {
+                    onUnityInstanceInitialized(unityInstance);
+                }
             }).catch((message) => {
                 alert(message);
             });
