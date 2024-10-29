@@ -165,6 +165,11 @@ function getLocation() {
   }
 }
 
+function StartGeolocation() {
+  GetLocation(); // Calls your existing GetLocation function
+}
+
+
 // Initialize getLocation after the Unity instance is ready
 function onUnityInstanceInitialized(instance) {
   unityInstance = instance;
